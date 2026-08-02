@@ -1,0 +1,521 @@
+<html>
+<script src='https://d3js.org/d3.v5.min.js'></script>
+
+<style>
+    circle {
+        fill: lightblue;
+        stroke: black;
+    }
+
+    .slide-selected{
+        margin-left: 10%;
+        width: 80%;
+        height: 58%;
+        border: 3px solid black; 
+    }
+
+    .slide-unselected{
+        margin-left: 10%;
+        width: 80%;
+        height: 70%;
+        border: 3px solid black;
+        display: none;
+    }
+
+    .nav-box{
+        position: fixed;
+        bottom: 24%;
+    }
+
+    .button-hidden{
+        display: none;
+    }
+    .button-shown{
+        display: inline-flex;
+    }
+
+</style>
+
+<body onload='init()'>
+    <h1>Pokemon: Inter-generational power creep?</h1>
+    <p>The beloved franchise, Pokemon has had many generations
+        of video games. With each entry Game Freak has an incentive 
+        to sell as many games as possible, but how do they encourage more sales?
+        A common theory within the fan base is through "power creep" or the increase
+        in stats as a story or franchise continues. Let's test this theory against
+        the first six generations of Pokemon games.
+    </p>
+    <div id="slide" class="slide-selected">
+
+        <h2 id="generation-tag">Generation 1</h2>
+        
+        <div>
+            <span>
+                <svg width=300 height=300 style="border: solid;">
+                    <div id="tooltip"></div>
+                </svg>
+            </span>
+
+        </div>
+        <div id="button-box" class="nav-box">
+            <button id="prev-disabled" disabled class="button-shown">Previous Generation</button>
+            <button id="prev" onclick="previous(this);" class="button-hidden">Previous Generation</button>
+            <button id="next" onclick="next(this);" class="button-shown">Next Generation</button>
+            <button id="next-disabled" disabled class="button-hidden">Next Generation</button>
+        </div>
+    </div>
+        <div >
+            <p id="conclusion" style="opacity: 0;">
+                As you can see by the narrow bands on the graph,
+                over the years the Pokemon franchise kept a rather consistent average stat range.
+                Perhaps instead of increasing the power of each generations to increase sales, as a series famous for allowing
+                intra game transfers,
+                the "magic" of Pokemon is that regardless of which Pokemon Generation is your favorite the series' future games
+                never made
+                your previous games captures feel irrelevant. But what do you think? Feel free to go back, interact with the
+                graph and make your own conclusions!
+            </p>
+        </div>
+    <script>
+        var generation = 1;
+        var data;
+        var highestStat = 160;
+        let averageState;
+        var graph;
+        var width = 200;
+        var height = 200;
+        var margin = 50;
+        var sliderHeight = 120;
+        var hasSeenInstructions = false;
+        var hasSeenInstructions2 = false;
+
+        // ((((highestStat - sliderHeight) / highestStat) * height) + 50);
+
+        const stats = ["HP", "Attack", "Sp. Atk", "Defense", "Sp. Def", "Speed"];
+
+        let totals = {
+            "1": {"color": "red", "total": 0},
+            "2": {"color": "orchid", "total": 0},
+            "3": {"color": "green", "total": 0},
+            "4": {"color": "blue", "total": 0},
+            "5": {"color": "slategray", "total": 0},
+            "6": {"color": "orange", "total": 0} 
+        };
+
+        var genDict = {
+                "1": [],
+                "2": [],
+                "3": [],
+                "4": [],
+                "5": [],
+                "6": []
+            };
+
+            var legendDict = {
+                "1": [],
+                "2": [],
+                "3": [],
+                "4": [],
+                "5": [],
+                "6": [] 
+            };
+
+            var genStatsDict = {
+               "1": [0, 1530, 0],
+                "2": [0, 1530, 0],
+                "3": [0, 1530, 0],
+                "4": [0, 1530, 0],
+                "5": [0, 1530, 0],
+                "6": [0, 1530, 0]  
+            };
+
+           var legendStatsDict = {
+                "1": [0, 1530, 0], 
+                "2":  [0, 1530, 0], 
+                "3":  [0, 1530, 0], 
+                "4":  [0, 1530, 0], 
+                "5": [0, 1530, 0], 
+                "6":  [0, 1530, 0] 
+            }; 
+        var currentGen;
+
+        function modeSelect(mode){
+            removeOldChart();
+            makeBarChart(mode);
+        }
+
+        function removeOldChart(){
+            d3.select("#g1").remove()
+            d3.select("#g2").remove()
+            d3.select("#g3").remove()
+            d3.select("#slider-black-g").remove();
+            d3.select("#slider-white-g").remove();
+
+        }
+
+        function next(elem){
+            generation += 1;
+            d3.select("#generation-tag")
+                .html("Generation " + generation)
+ 
+                if (generation == 6){
+                d3.select("#next-disabled")
+                    .attr("class", "button-shown")
+                d3.select("#next")
+                     .attr("class", "button-hidden")
+
+            }else{
+                d3.select("#next-disabled")
+                    .attr("class", "button-hidden")
+                d3.select("#next")
+                    .attr("class", "button-shown")
+                d3.select("#prev-disabled")
+                     .attr("class", "button-hidden")
+                d3.select("#prev")
+                     .attr("class", "button-shown")
+            }
+
+            d3.select("#instructions")
+                .attr("style", "display:none")
+
+            removeOldChart();
+            makeBarChart();
+
+            if (generation == 6){
+                d3.select("#conclusion")
+                    .style("opacity", 1)
+              }
+        }
+
+        function previous(elem){
+            generation -= 1;
+            d3.select("#generation-tag")
+                .html("Generation " + generation)
+        
+ 
+            if (generation == 1) {
+                d3.select("#prev-disabled")
+                    .attr("class", "button-shown")
+                d3.select("#prev")
+                    .attr("class", "button-hidden")
+            }else{
+                d3.select("#next-disabled")
+                    .attr("class", "button-hidden")
+                d3.select("#next")
+                    .attr("class", "button-shown")
+                d3.select("#prev-disabled")
+                    .attr("class", "button-hidden")
+                d3.select("#prev")
+                    .attr("class", "button-shown")
+            }
+
+            removeOldChart();
+            makeBarChart();
+        }
+        
+        function getData(mode = "gen"){
+            console.log(mode);
+            var generationData;
+                generationData = genDict[generation];
+            var generationDataLegend = legendDict[generation];
+            
+
+            var x = d3.scaleBand().domain(stats).range([0, width]);
+            var formatData = stats.map(key => ({
+                key,
+                value: [d3.mean(generationData, d => parseInt(d[key])), d3.mean(generationDataLegend, d => parseInt(d[key])) ]
+      
+            }));
+
+            var averageState = [d3.mean(generationData, d => parseInt(d["Total"])) / 6, d3.mean(generationDataLegend, d => parseInt(d["Total"])) / 6 ];
+            totals[generation].total = averageState;
+
+            return [generationData, formatData, averageState, x]
+        }
+
+        function makeBarChart(mode = "gen"){
+            [generationData, formatData, averageState, x] = getData(mode);
+            
+            console.log(formatData);
+            // var x = d3.scaleBand().domain(["HP", "Attack", "Sp. Attack", "Defense", "Sp. Defense", "Speed"]).range([0, width])
+            var h = d3.scaleLinear().domain([highestStat, 0]).range([height, 0]);
+            var y = d3.scaleLinear().domain([highestStat, 0]).range([0, height]);
+            var y2 = d3.scaleLinear().domain([0, highestStat]).range([height, 0]);
+ 
+            graph = d3.select("svg")
+                .attr("width", width + 2 * margin)
+                .attr("height", height + 2 * margin)
+                .on("mouseover", function () {
+                    d3.select("svg").append("line")
+                        .attr("transform", "translate(50,50)")
+                        .attr("x1", 0)
+                        .attr("x2", width)
+                        .attr("y1", 100)
+                        .attr("y2", 100)
+                        .attr("fill", "blue")
+                })
+                .append("g")
+                .attr("transform", "translate(50,50)")
+                .attr("id", "g1")
+                .selectAll("rect")
+                .data(formatData)
+                .enter()
+                .append("rect")
+                // .scaleLinear().domain([0,1]).range([0, 250])
+                .attr("x", function (d, i) { return x(d.key) })
+                .attr("y", function (d, i) { return y(d.value[0])})
+                .attr("width", 200 / 6)
+                .attr("height", function (d) { return h(d.value[0]) })
+                .attr("fill", totals[generation].color)
+                .transition()
+                .duration(2000)
+                .ease(d3.easeCubicInOut)
+                .attr("x", function (d, i) { return x(d.key) })
+                .attr("y", function (d, i) { return y(d.value[1]) })
+                .attr("width", 200 / 6)
+                .attr("height", function (d) { return h(d.value[1]) })
+                .attr("fill", "lightgray")
+               
+
+            d3.select("svg").append("g")
+                .attr("transform", "translate(50,50)")
+                .attr("id", "g2")
+                .call(d3.axisLeft(y2))
+
+            d3.select("svg").append("g")
+                .attr("transform", "translate(50,250)")
+                .attr("id", "g3")
+                .call(d3.axisBottom(x))
+                .selectAll("text")
+                .attr("transform", "translate(10, 10) rotate(35)")
+
+            var tooltip = d3.select('#tooltip')
+                .style('position', 'absolute')
+                .style('left', '400px')
+                .style('top', '450px')
+                .style('border', "2px solid black")
+                .style('background-color', 'lightgray')
+                .style('opacity', 0)
+
+            d3.select("svg").append("line")
+                .attr("transform", "translate(50,50)")
+                .attr("x1", 0)
+                .attr("x2", width)
+                .attr("y1", ((highestStat - averageState[0]) / highestStat) * height)
+                .attr("y2", ((highestStat - averageState[0]) / highestStat) * height)
+                .attr("stroke-width", 2)
+                .attr("stroke", totals[generation].color)
+                .attr("id", generation + ":" + (averageState[0] > 80 ? "legend" : "non-legend"))
+                .on("mouseover", function (d = [d3.select(), 2, 100, 200], i) {
+                    var lineGen = this.id.split(":")[0];
+                    var lineLegend = this.id.split(":")[1];
+                    // console.log(lineGen, lineLegend);
+                    var numPokemon;
+                    var lowRange, highRange; 
+ 
+                    if(lineLegend == "non-legend"){
+                        numPokemon = genStatsDict[lineGen][0];
+                        lowRange = genStatsDict[lineGen][1];
+                        highRange = genStatsDict[lineGen][2];
+                    }else{
+                        numPokemon = legendStatsDict[lineGen][0];
+                        lowRange = legendStatsDict[lineGen][1];
+                        highRange = legendStatsDict[lineGen][2]; 
+                    }
+
+                    tooltip
+                        .style("opacity", 1)
+                        .html("Generation " + lineGen + ": " + lineLegend + "<br/>"
+                            + "Number of Pokemon:" + numPokemon + "<br/>"
+                            + "Sum of Stats Range: " + "(" + lowRange + ", " + highRange + ")")
+                })
+                .on("mouseout", function () {
+                    tooltip
+                        .style("opacity", 0)
+                });
+
+             d3.select("svg").append("line")
+                .attr("transform", "translate(50,50)")
+                .attr("x1", 0)
+                .attr("x2", width)
+                .attr("y1", ((highestStat - averageState[0]) / highestStat) * height)
+                .attr("y2", ((highestStat - averageState[0]) / highestStat) * height)
+                .attr("stroke-width", 2)
+                .attr("stroke", totals[generation].color)
+                .attr("id", generation+":"+(averageState[0] > 80 ? "legend" : "non-legend"))
+                .on("mouseover", function (d = [d3.select(), 2, 100, 200], i) {
+                    var lineGen = this.id.split(":")[0];
+                    var lineLegend = "legend";
+                     // console.log(lineGen, lineLegend);
+                    var numPokemon;
+                    var lowRange, highRange;
+                         numPokemon = legendStatsDict[lineGen][0];
+                         lowRange = legendStatsDict[lineGen][1];
+                         highRange = legendStatsDict[lineGen][2];
+ 
+                    tooltip
+                         .style("opacity", 1)
+                         .html("Generation " + lineGen + ": " + lineLegend + "<br/>"
+                             + "Number of Pokemon:" + numPokemon + "<br/>"
+                             + "Sum of Stats Range: " + "(" + lowRange + ", " + highRange + ")")
+                 })
+                 .on("mouseout", function () {
+                     tooltip
+                         .style("opacity", 0)
+                 })
+                .transition()
+                .duration(2000)
+                .attr("y1", ((highestStat - averageState[1]) / highestStat) * height)
+                .attr("y2", ((highestStat - averageState[1]) / highestStat) * height) 
+
+                d3.selectAll("line").raise();
+
+                d3.select("svg")
+                    // .on("mouseover", function () {
+                    //     d3.select("svg").append("line")
+                    //         .attr("transform", "translate(50,50)")
+                    //         .attr("x1", 0)
+                    //         .attr("x2", width)
+                    //         .attr("y1", 100)
+                    //         .attr("y2", 100)
+                    //         .attr("fill", "blue")
+                    // })
+                    // .attr("transform", "translate(50,50)")
+                    .append("g")
+                    .attr("width", 20)
+                    .attr("height", 20)
+                    .attr("id", "slider-black-g")
+                    .append("rect")
+                    .attr("id", "slider-black")
+                    .attr("transform", "translate(260,"+  sliderHeight +") rotate(45)")
+                    // .attr("x", 200)
+                    // .attr("y", sliderHeight)
+                    .attr("width", 10)
+                    .attr("height", 10)
+                    .attr("fill", "black")
+                    
+
+            d3.select("svg")
+                // .on("mouseover", function () {
+                //     d3.select("svg").append("line")
+                //         .attr("transform", "translate(50,50)")
+                //         .attr("x1", 0)
+                //         .attr("x2", width)
+                //         .attr("y1", 100)
+                //         .attr("y2", 100)
+                //         .attr("fill", "blue")
+                // })
+                // .attr("transform", "translate(50,50)")
+                .append("g")
+                .attr("width", 20)
+                .attr("height", 20)
+                .attr("id", "slider-white-g")
+                .append("rect")
+                .attr("id", "slider-white")
+ 
+                .attr("transform", "translate(260," + sliderHeight + ") ")
+                // .attr("x", 200)
+                // .attr("y", sliderHeight)
+                .attr("width", 15)
+                .attr("height", 15)
+                .attr("fill", "white")
+
+                d3.select("svg")
+                .on("click", function(){
+                    var click = d3.mouse(this);
+
+                    console.log(click)
+                    if (click[1] > 50 && click[1] < 250){
+                        sliderHeight = click[1] -10;
+                        console.log(sliderHeight)
+                        d3.select("#slider-white")
+                            .attr("transform", "translate(260," + sliderHeight + ") ")
+                        d3.select("#slider-black")
+                            .attr("transform", "translate(260," + sliderHeight + ") rotate(45)")
+ 
+                    }
+                })
+            }
+
+            d3.select("div")
+                .on("mouseover", function(){
+                    console.log("ads")
+                    if (!hasSeenInstructions){
+                        d3.select("div").select("div")
+                            .append("span")
+                            .attr("id", "instructions")
+                             .attr("style", "display: inline-block;  border: 2px solid black; width: 150px; height: 175px")
+                            .transition()
+                            .delay(12000)
+                            .duration(1000)
+                            .style("opacity", 0)
+                            // .attr("style", "display:none")
+
+                        d3.select("#instructions")
+                        .append("p")
+                        .html("Let's play a game!\n Place your guess for what the average stats will be for the next generation, for either legendary or normal Pokemon, by clicking on the graph" )
+                        hasSeenInstructions = true;
+                    }
+
+                    if (!hasSeenInstructions2 && generation == 2) {
+                        // d3.select("#instructions")
+                        //     .attr("style", "display:none")
+
+                        d3.select("#instructions")
+                            .style("opacity", 1)
+                            .attr("style", "display: inline-block;  border: 2px solid black; width: 150px; height: 50px")
+                            .html("Hover over the colored lines for more info!")
+                            .transition()
+                            .delay(6500)
+                            .duration(500)
+                            .style("opacity", 0)
+                     
+                        hasSeenInstructions = true;
+                        hasSeenInstructions2 = true;
+
+                    }
+                })
+
+
+        async function init() {
+            data = await d3.csv("Pokemon.csv");
+            // console.log(data);
+
+            for (var i = 0; i < data.length; i++) { 
+                pokemon = data[i];
+                // console.log(pokemon)
+                // allDict[pokemon.Generation].push(pokemon);
+
+                 if (pokemon.Legendary == "True"){
+                    legendDict[pokemon.Generation].push(pokemon);
+                    legendStatsDict[pokemon.Generation][0]+=1;
+                    if (legendStatsDict[pokemon.Generation][1] >pokemon.Total){
+                       legendStatsDict[pokemon.Generation][1] = pokemon.Total 
+                    }
+                    if (legendStatsDict[pokemon.Generation][2] < pokemon.Total) {
+                         legendStatsDict[pokemon.Generation][2] = pokemon.Total
+                     }
+                    legendStatsDict[pokemon.Generation]
+                }else{
+                    genDict[pokemon.Generation].push(pokemon);
+                    genStatsDict[pokemon.Generation][0] += 1;
+                     if (genStatsDict[pokemon.Generation][1] > pokemon.Total) {
+                         genStatsDict[pokemon.Generation][1] = pokemon.Total
+                     }
+                     if (genStatsDict[pokemon.Generation][2] < pokemon.Total) {
+                         genStatsDict[pokemon.Generation][2] = pokemon.Total
+                     }
+                    genStatsDict[pokemon.Generation]
+                }
+            }
+            makeBarChart();                
+        //    d3.select("svg").selectAll("text")
+        //         
+        //         // .call(d3.axisBottom(x)) 
+        }
+
+    </script>
+
+</body>
+
+</html>
